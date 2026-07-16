@@ -1,0 +1,43 @@
+# ── Model weights & HuggingFace cache ──────────────────────────
+models/
+datasets/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.h5
+
+# ── Python ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# ── Environments ───────────────────────────────────────────────
+envs/
+*.env
+.venv/
+
+# ── Experiment outputs ─────────────────────────────────────────
+results/
+slurm_logs/
+*.out
+*.err
+
+# ── Notebooks (optional — ignore checkpoints at minimum) ───────
+notebooks/
+.ipynb_checkpoints/
+
+# ── Wandb ──────────────────────────────────────────────────────
+wandb/
+
+# ── Misc ───────────────────────────────────────────────────────
+.DS_Store
+*.log
+*.tmp
+.idea/
+.vscode/
