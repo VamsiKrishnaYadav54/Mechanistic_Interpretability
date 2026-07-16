@@ -1,0 +1,8 @@
+# Experiment config: IOI task baseline
+model: gpt2
+task: ioi
+n_examples: 3
+scoring_method: acdc       # acdc | eap | eap_ig | fisher
+threshold: 0.1             # edge pruning threshold
+device: cuda
+output_dir: /home/cccp/25m2125/VAMSI/mech_interp/results
