@@ -1,0 +1,18 @@
+# configs/ioi/eap_ig.yaml
+name: ioi_eap_ig_gpt2
+task: ioi
+method: eap_ig
+model: gpt2
+dataset_file: datasets/ioi/ioi_vanilla_template_prompts.json
+device: cuda
+batch_size: 16
+train_size: 128
+test_size: 128
+
+# EAP-IG specific
+n_steps: 10
+answer_function: avg_diff
+
+eval_edge_counts: [10, 20, 50, 100, 200, 500]
+viz_threshold: 3.5
+output_dir: /home/cccp/25m2125/VAMSI/mech_interp/results/ioi_eap_ig_gpt2

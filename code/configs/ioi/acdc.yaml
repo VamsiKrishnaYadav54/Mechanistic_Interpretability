@@ -1,0 +1,25 @@
+# configs/ioi/acdc.yaml
+name: ioi_acdc_gpt2
+task: ioi
+method: acdc
+model: gpt2
+dataset_file: datasets/ioi/ioi_vanilla_template_prompts.json
+device: cuda
+batch_size: 128
+train_size: 128
+test_size: 128
+
+# ACDC specific — sweeps all combinations of base × 10^exp
+# tao values: 1e-5, 3e-5, 5e-5 ... 9e-2 (20 values total)
+# tao_exps: [-5, -4, -3, -2]
+# tao_bases: [1, 3, 5, 7, 9]
+# Faster first run — 6 tao values instead of 20
+tao_exps: [-4, -3, -2]
+tao_bases: [1]
+
+faithfulness_target: kl_div
+
+eval_edge_counts: [10, 20, 50, 100, 200, 500]
+viz_threshold: 3.5
+output_dir: /home/cccp/25m2125/VAMSI/mech_interp/results/ioi_acdc_gpt2
+match_counts: [223, 575, 2384]

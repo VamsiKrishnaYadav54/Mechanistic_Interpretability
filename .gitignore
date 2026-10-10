@@ -1,12 +1,15 @@
 # ── Model weights & HuggingFace cache ──────────────────────────
 models/
-datasets/
 *.safetensors
 *.bin
 *.pt
 *.pth
 *.ckpt
 *.h5
+*.csv.gz
+
+# -- Backup -----------------------------------------------------
+_archive_*/
 
 # ── Python ─────────────────────────────────────────────────────
 __pycache__/

@@ -1,0 +1,18 @@
+# configs/greaterthan/eap.yaml
+name: greaterthan_eap_gpt2
+task: greaterthan
+method: eap
+model: gpt2
+dataset_file: datasets/greaterthan_gpt2-small_prompts.json
+device: cuda
+batch_size: 16
+train_size: 128
+test_size: 128
+
+grad_function: logit
+answer_function: avg_diff
+mask_val: 0.0
+
+eval_edge_counts: [10, 20, 50, 100, 200, 500]
+viz_threshold: 2.0
+output_dir: ~/mech_interp/results/greaterthan_eap_gpt2
