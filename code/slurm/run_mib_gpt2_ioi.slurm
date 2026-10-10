@@ -34,17 +34,32 @@ OUT=/home/cccp/25m2125/VAMSI/mech_interp/results/mib
 mkdir -p $OUT/circuits $OUT/results
 cd $MIB
 
-for METHOD in EAP EAP-IG-inputs EAP-IG-activations; do
+METHODS="EAP EAP-IG-inputs EAP-IG-activations"
+
+# --- discovery: skipped for any method whose circuit already exists ---
+for METHOD in $METHODS; do
+    F=$OUT/circuits/${METHOD}_patching_edge/ioi_gpt2/importances.json
+    if [[ -f "$F" ]]; then
+        echo; echo "########## discovery: $METHOD -- already done, skipping ##########"
+        continue
+    fi
     echo; echo "########## discovery: $METHOD ##########"
     python run_attribution.py --models gpt2 --tasks ioi --method $METHOD \
         --level edge --ablation patching --batch-size 20 \
         --circuit-dir $OUT/circuits/
 done
 
-echo; echo "########## evaluation ##########"
-python run_evaluation.py --models gpt2 --tasks ioi --split validation \
-    --level edge --ablation patching --batch-size 20 \
-    --circuit-dir $OUT/circuits/ --output-dir $OUT/results/
+echo; echo "circuits found:"; ls $OUT/circuits/
+
+# --- evaluation: once per method (run_evaluation builds the path from --method) ---
+for METHOD in $METHODS; do
+    echo; echo "########## evaluation: $METHOD ##########"
+    python run_evaluation.py --models gpt2 --tasks ioi --method $METHOD \
+        --split validation --level edge --ablation patching --batch-size 20 \
+        --circuit-dir $OUT/circuits/ --output-dir $OUT/results/
+done
+
+echo; echo "results found:"; ls -R $OUT/results/ | head -30
 
 echo; echo "########## CPR ##########"
 python print_results.py --output-dir $OUT/results/ --split validation --metric cpr
