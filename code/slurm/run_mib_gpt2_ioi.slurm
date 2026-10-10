@@ -11,6 +11,7 @@
 #SBATCH --error=/home/cccp/25m2125/VAMSI/mech_interp/slurm_logs/%j_%x.err
 
 # Phase 1, step 1: reproduce MIB's published GPT-2 / IOI numbers.
+# Target (MIB Table 2): CMD = 0.03 for EAP, EAP-IG-inputs, EAP-IG-activations.
 # Runs in the separate "mib" env. Code lives in code/external/MIB-circuit-track
 # (a git submodule, never edited); all outputs go to results/mib/ so the
 # submodule stays clean.
@@ -51,12 +52,23 @@ done
 
 echo; echo "circuits found:"; ls $OUT/circuits/
 
-# --- evaluation: once per method (run_evaluation builds the path from --method) ---
+# --- evaluation: once per method, twice each ---
+#   signed scores   (abs-False) -> used for CPR
+#   absolute scores (abs-True)  -> used for CMD   (MIB print_results.py reads these)
+# finished evaluations are skipped
 for METHOD in $METHODS; do
-    echo; echo "########## evaluation: $METHOD ##########"
-    python run_evaluation.py --models gpt2 --tasks ioi --method $METHOD \
+  for ABS in "" "--absolute"; do
+    TAG=$([[ -z "$ABS" ]] && echo False || echo True)
+    R=$OUT/results/${METHOD}_patching_edge/ioi_gpt2_validation_abs-${TAG}.pkl
+    if [[ -f "$R" ]]; then
+        echo; echo "########## evaluation: $METHOD abs-$TAG -- already done, skipping ##########"
+        continue
+    fi
+    echo; echo "########## evaluation: $METHOD abs-$TAG ##########"
+    python run_evaluation.py --models gpt2 --tasks ioi --method $METHOD $ABS \
         --split validation --level edge --ablation patching --batch-size 20 \
         --circuit-dir $OUT/circuits/ --output-dir $OUT/results/
+  done
 done
 
 echo; echo "results found:"; ls -R $OUT/results/ | head -30
