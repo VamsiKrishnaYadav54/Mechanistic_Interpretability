@@ -1,0 +1,230 @@
+diff --git a/auto_circuit/data.py b/auto_circuit/data.py
+index cf9199d..7510185 100644
+--- a/auto_circuit/data.py
++++ b/auto_circuit/data.py
+@@ -11,7 +11,14 @@ from torch.utils.data import (
+     Dataset,
+     Subset,
+ )
+-from transformer_lens.past_key_value_caching import HookedTransformerKeyValueCache
++# from transformer_lens.past_key_value_caching import HookedTransformerKeyValueCache
++# NEW
++try:
++    from transformer_lens.past_key_value_caching import HookedTransformerKeyValueCache
++except ImportError:
++    # Newer TransformerLens moved this class
++    from transformer_lens import HookedTransformerKeyValueCache
++
+ 
+ BatchKey = int
+ """A unique key for a [`PromptPairBatch`][auto_circuit.data.PromptPairBatch]."""
+diff --git a/auto_circuit/prune_algos/parameter_integrated_gradients.py b/auto_circuit/prune_algos/parameter_integrated_gradients.py
+index 575c819..04dd8d1 100644
+--- a/auto_circuit/prune_algos/parameter_integrated_gradients.py
++++ b/auto_circuit/prune_algos/parameter_integrated_gradients.py
+@@ -1,75 +1,89 @@
+-# class BaselineWeights(Enum):
+-#     """The baseline weights to use for integrated gradients."""
+-
+-#     ZERO = 0
+-#     MEAN = 1
+-#     PERMUTED = 2
+-
+-
+-# def parameter_integrated_grads_prune_scores(
+-#     model: t.nn.Module,
+-#     factorized: bool,
+-#     train_data: DataLoader[PromptPairBatch],
+-#     baseline_weights: BaselineWeights,
+-#     samples: int = 50,
+-# ) -> Dict[Edge, float]:
+-#     """Gradients of weights wrt to network output, integrated between some baseline
+-#     weights and the actual weights."""
+-
+-#     edges: OrderedSet[Edge] = graph_edges(model, factorized)
+-#     weights = set(chain(*[[e.src.weight, e.dest.weight] for e in edges]))
+-#     weights = list(filter(lambda x: x is not None, weights))
+-
+-#     normal_state = {}
+-#     for name, param in model.state_dict().items():
+-#         if name in weights:
+-#             assert isinstance(param, t.Tensor)
+-#             normal_state[name] = param.clone()
+-
+-#     base_state = {}
+-#     if baseline_weights == BaselineWeights.ZERO:
+-#         base_state = dict([(n, t.zeros_like(p)) for n, p in normal_state.items()])
+-#     else:
+-#         raise NotImplementedError
+-
+-#     ig = dict([(n, t.zeros_like(p)) for n, p in normal_state.items()])
+-#     for idx in (pbar := tqdm(range(samples))):
+-#         pbar.set_description_str(f"PIG Sample {idx+1}/{samples}", refresh=False)
+-#         lerp_state = {}
+-#         for name in weights:
+-#             lerp_state[name] = base_state[name] + (
+-#                 normal_state[name] - base_state[name]
+-#             ) * idx / (samples - 1)
+-#             model.load_state_dict(lerp_state, strict=False)
+-
+-#         model.zero_grad()
+-#         for batch in train_data:
+-#             out = model(batch.clean)
+-#             loss = out.mean()
+-#             loss.backward()
+-
+-#         for name, param in model.named_parameters():
+-#             if name in weights:
+-#                 assert isinstance(param.grad, t.Tensor)
+-#                 ig[name] += param.grad / samples
+-
+-#     weight_diffs = {}
+-#     for name, normal_param in normal_state.items():
+-#         weight_diffs[name] = normal_param - base_state[name]
+-
+-#     for name, val in ig.items():
+-#         ig[name] = val * weight_diffs[name]
+-
+-#     prune_scores = {}
+-#     for edge in edges:
+-#         if factorized:
+-#             src_ig = ig[edge.src.weight][edge.src.weight_t_idx]
+-#             dest_ig = ig[edge.dest.weight][edge.dest.weight_t_idx]
+-#             prune_scores[edge] = (
+-#                 src_ig.abs().sum().item() + dest_ig.abs().sum().item()
+-#             ) / 2
+-#         else:
+-#             src_ig = ig[edge.src.weight][edge.src.weight_t_idx]
+-#             prune_scores[edge] = src_ig.abs().sum().item()
+-
+-#     return prune_scores
++from enum import Enum
++from itertools import chain
++from typing import Dict
++
++import torch as t
++from ordered_set import OrderedSet
++from torch.utils.data import DataLoader
++from tqdm import tqdm
++
++from auto_circuit.data import PromptPairBatch
++from auto_circuit.types import Edge
++from auto_circuit.utils.graph_utils import graph_edges
++
++
++class BaselineWeights(Enum):
++    """The baseline weights to use for integrated gradients."""
++
++    ZERO = 0
++    MEAN = 1
++    PERMUTED = 2
++
++
++def parameter_integrated_grads_prune_scores(
++    model: t.nn.Module,
++    factorized: bool,
++    train_data: DataLoader[PromptPairBatch],
++    baseline_weights: BaselineWeights,
++    samples: int = 50,
++) -> Dict[Edge, float]:
++    """Gradients of weights wrt to network output, integrated between some baseline
++    weights and the actual weights."""
++
++    edges: OrderedSet[Edge] = graph_edges(model, factorized)
++    weights = set(chain(*[[e.src.weight, e.dest.weight] for e in edges]))
++    weights = list(filter(lambda x: x is not None, weights))
++
++    normal_state = {}
++    for name, param in model.state_dict().items():
++        if name in weights:
++            assert isinstance(param, t.Tensor)
++            normal_state[name] = param.clone()
++
++    base_state = {}
++    if baseline_weights == BaselineWeights.ZERO:
++        base_state = dict([(n, t.zeros_like(p)) for n, p in normal_state.items()])
++    else:
++        raise NotImplementedError
++
++    ig = dict([(n, t.zeros_like(p)) for n, p in normal_state.items()])
++    for idx in (pbar := tqdm(range(samples))):
++        pbar.set_description_str(f"PIG Sample {idx+1}/{samples}", refresh=False)
++        lerp_state = {}
++        for name in weights:
++            lerp_state[name] = base_state[name] + (
++                normal_state[name] - base_state[name]
++            ) * idx / (samples - 1)
++            model.load_state_dict(lerp_state, strict=False)
++
++        model.zero_grad()
++        for batch in train_data:
++            out = model(batch.clean)
++            loss = out.mean()
++            loss.backward()
++
++        for name, param in model.named_parameters():
++            if name in weights:
++                assert isinstance(param.grad, t.Tensor)
++                ig[name] += param.grad / samples
++
++    weight_diffs = {}
++    for name, normal_param in normal_state.items():
++        weight_diffs[name] = normal_param - base_state[name]
++
++    for name, val in ig.items():
++        ig[name] = val * weight_diffs[name]
++
++    prune_scores = {}
++    for edge in edges:
++        if factorized:
++            src_ig = ig[edge.src.weight][edge.src.weight_t_idx]
++            dest_ig = ig[edge.dest.weight][edge.dest.weight_t_idx]
++            prune_scores[edge] = (
++                src_ig.abs().sum().item() + dest_ig.abs().sum().item()
++            ) / 2
++        else:
++            src_ig = ig[edge.src.weight][edge.src.weight_t_idx]
++            prune_scores[edge] = src_ig.abs().sum().item()
++
++    return prune_scores
+diff --git a/auto_circuit/utils/patchable_model.py b/auto_circuit/utils/patchable_model.py
+index 64654d3..b1f0485 100644
+--- a/auto_circuit/utils/patchable_model.py
++++ b/auto_circuit/utils/patchable_model.py
+@@ -2,7 +2,14 @@ from collections import defaultdict
+ from typing import Any, Collection, Dict, List, Optional, Set, Tuple
+ 
+ import torch as t
+-from transformer_lens.past_key_value_caching import HookedTransformerKeyValueCache
++# from transformer_lens.past_key_value_caching import HookedTransformerKeyValueCache
++
++# NEW
++try:
++    from transformer_lens.past_key_value_caching import HookedTransformerKeyValueCache
++except ImportError:
++    # Newer TransformerLens moved this class
++    from transformer_lens import HookedTransformerKeyValueCache
+ 
+ from auto_circuit.types import DestNode, Edge, Node, PruneScores, SrcNode
+ from auto_circuit.utils.patch_wrapper import PatchWrapperImpl
+diff --git a/auto_circuit/visualize.py b/auto_circuit/visualize.py
+index 62f8ece..9d1a9df 100644
+--- a/auto_circuit/visualize.py
++++ b/auto_circuit/visualize.py
+@@ -311,8 +311,8 @@ def draw_seq_graph(
+             xref="paper",
+             yref="paper",
+         )
+-    if display_ipython:
+-        fig.show()
++    # if display_ipython:
++    #     fig.show()
+     if file_path:
+         absolute_path: Path = repo_path_to_abs_path(file_path)
+         fig.write_image(str(absolute_path))
+diff --git a/docs/assets/IOI_Attributions_Viz.png b/docs/assets/IOI_Attributions_Viz.png
+index 3bb6aef..2cbbaf9 100644
+Binary files a/docs/assets/IOI_Attributions_Viz.png and b/docs/assets/IOI_Attributions_Viz.png differ
+diff --git a/docs/assets/Small_Circuit_Viz.png b/docs/assets/Small_Circuit_Viz.png
+index ed18618..d4798c3 100644
+Binary files a/docs/assets/Small_Circuit_Viz.png and b/docs/assets/Small_Circuit_Viz.png differ

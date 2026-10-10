@@ -43,4 +43,6 @@ wandb/
 *.log
 *.tmp
 .idea/
-.vscode/
+.vscode/code/external/auto-circuit/
+*.pdf
+.prune_scores_cache/
