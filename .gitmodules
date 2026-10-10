@@ -1,0 +1,4 @@
+[submodule "code/external/MIB-circuit-track"]
+	path = code/external/MIB-circuit-track
+	url = https://github.com/hannamw/MIB-circuit-track
+	ignore = dirty
