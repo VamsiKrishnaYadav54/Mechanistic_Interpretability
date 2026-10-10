@@ -34,7 +34,7 @@ OUT=/home/cccp/25m2125/VAMSI/mech_interp/results/mib
 mkdir -p $OUT/circuits $OUT/results
 cd $MIB
 
-for METHOD in eap EAP-IG-inputs; do
+for METHOD in EAP EAP-IG-inputs EAP-IG-activations; do
     echo; echo "########## discovery: $METHOD ##########"
     python run_attribution.py --models gpt2 --tasks ioi --method $METHOD \
         --level edge --ablation patching --batch-size 20 \
